@@ -1,7 +1,11 @@
 'use client';
 
-import { UserButton, useUser, RedirectToSignIn } from "@clerk/nextjs";
-import React, { useState } from "react";
+import { useUser, RedirectToSignIn } from "@clerk/nextjs";
+import React, { useState, useEffect } from "react";
+import Link from 'next/link';
+import CustomUserButton from '@/components/CustomUserButton';
+import ErrorMessage from '@/components/ErrorMessage';
+import { AppError, createAppError } from '@/utils/errorHandler';
 
 // 1. Define applicant type
 type Applicant = {
@@ -31,16 +35,26 @@ const statusColors: Record<Applicant["status"], string> = {
   Approved: "bg-green-500",
   Pending: "bg-yellow-400",
   Rejected: "bg-red-500"
-};
-
+  };
 
 
 export default function DashboardPage() {
   const { isLoaded, user } = useUser();
+  const [error, setError] = useState<AppError | null>(null);
   const adminAssignedType: keyof typeof applicants = "Yellow";
   const [selectedType, setSelectedType] = useState<keyof typeof applicants>("Yellow");
   const [search, setSearch] = useState<string>('');
   const [filter, setFilter] = useState<Applicant["status"] | "">("");
+
+  // Simulate a data fetching error
+  const simulateError = () => {
+    try {
+      // Simulate a failed API call
+      throw new Error("Failed to fetch applicant data from the server.");
+    } catch (e) {
+      setError(createAppError(e, 'DataFetching'));
+    }
+  };
 
   if (!isLoaded) return <div className="p-10">Loading...</div>;
   if (!user) return <RedirectToSignIn />;
@@ -51,6 +65,31 @@ export default function DashboardPage() {
     app.name.toLowerCase().includes(search.toLowerCase()) &&
     (filter ? app.status === filter : true)
   );
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <nav className="bg-white shadow-md w-full sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-emerald-500 rounded-xl flex items-center justify-center">
+                <span className="text-white font-bold text-xl">eM</span>
+              </div>
+              <span className="text-2xl font-bold text-gray-800">eMediCard</span>
+            </div>
+            <CustomUserButton />
+          </div>
+        </nav>
+        <main className="max-w-6xl mx-auto py-10 px-4">
+          <ErrorMessage
+            title={error.title}
+            message={error.message}
+            onRetry={error.isRetryable ? () => setError(null) : undefined}
+          />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -63,13 +102,25 @@ export default function DashboardPage() {
             </div>
             <span className="text-2xl font-bold text-gray-800">eMediCard</span>
           </div>
-          <UserButton afterSignOutUrl="/" />
+          
+          {/* --- UPDATED: Add a group for the new button and user icon --- */}
+          <div className="flex items-center gap-4">
+            <Link
+              href="/dashboard/notification-management"
+              className="text-gray-500 hover:text-emerald-600"
+              title="Manage Notifications"
+            >
+              {/* Bell Icon */}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+            </Link>
+            <CustomUserButton />
+          </div>
         </div>
       </nav>
-
+      
       <main className="max-w-6xl mx-auto py-10 px-4">
         {/* Stats Row */}
-        <div className="grid grid-cols-2  sm:grid-cols-5 gap-4 mb-10">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-10">
           <div className="bg-white border rounded-lg p-4 text-center">
             <div className="text-xl text-black font-bold">6</div>
             <div className="text-xs text-gray-500">Today Pending</div>
@@ -105,7 +156,7 @@ export default function DashboardPage() {
                 onChange={e => setSelectedType(e.target.value as keyof typeof applicants)}
                 className="px-4 py-2 pr-10 border border-gray-300 text-black rounded-lg shadow-sm text-base focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
-                <option value="Yellow ">Yellow Card</option>
+                <option value="Yellow">Yellow Card</option>
                 <option value="Green">Green Card</option>
                 <option value="Pink">Pink Card</option>
               </select>
@@ -126,21 +177,47 @@ export default function DashboardPage() {
               </select>
             </div>
           </div>
-          {/* Search */}
-          <div className="flex flex-col">
-            <label className="block text-sm font-semibold text-gray-700 mb-1 invisible md:visible">
-              &nbsp;
-            </label>
-            <input
-              type="text"
-              placeholder="Search Applicants"
-              className="px-4 py-2  border border-gray-300 text-black rounded-lg"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              style={{ minWidth: 220 }}
-            />
+          
+          {/* Button and Search Group */}
+          <div className="flex items-end gap-4">
+            {/* Conditionally Rendered Attendance Tracker Button */}
+            {selectedType === 'Yellow' && (
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1 invisible md:visible"> </label>
+                <Link
+                  href="/dashboard/attendance-tracker"
+                  className="flex items-center justify-center bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-700 transition-colors whitespace-nowrap"
+                >
+                  Track Attendance
+                </Link>
+              </div>
+            )}
+            
+            {/* Search */}
+            <div className="flex flex-col">
+              <label className="block text-sm font-semibold text-gray-700 mb-1 invisible md:visible"> </label>
+              <input
+                type="text"
+                placeholder="Search Applicants"
+                className="px-4 py-2 border border-gray-300 text-black rounded-lg"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                style={{ minWidth: 220 }}
+              />
+            </div>
           </div>
         </div>
+        
+        {/* Simulate Error Button */}
+        <div className="mb-4">
+          <button
+            onClick={simulateError}
+            className="bg-red-500 text-white px-4 py-2 rounded-lg"
+          >
+            Simulate Data Fetching Error
+          </button>
+        </div>
+
         {/* Table or Privilege Logic */}
         {selectedType !== adminAssignedType ? (
           <div className="flex flex-col items-center justify-center py-16">
@@ -156,18 +233,10 @@ export default function DashboardPage() {
             <table className="w-full bg-white rounded-xl shadow-md overflow-hidden">
               <thead>
                 <tr className="bg-emerald-50">
-                  <th className="text-left px-6 py-3 font-semibold text-gray-700">
-                    Name
-                  </th>
-                  <th className="text-left px-6 py-3 font-semibold text-gray-700">
-                    Submission Date
-                  </th>
-                  <th className="text-left px-6 py-3 font-semibold text-gray-700">
-                    Status
-                  </th>
-                  <th className="text-left px-6 py-3 font-semibold text-gray-700">
-                    Actions
-                  </th>
+                  <th className="text-left px-6 py-3 font-semibold text-gray-700">Name</th>
+                  <th className="text-left px-6 py-3 font-semibold text-gray-700">Submission Date</th>
+                  <th className="text-left px-6 py-3 font-semibold text-gray-700">Status</th>
+                  <th className="text-left px-6 py-3 font-semibold text-gray-700">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -182,7 +251,7 @@ export default function DashboardPage() {
                     <tr key={i} className="border-b last:border-none">
                       <td className="px-6 text-black py-4">{app.name}</td>
                       <td className="px-6 text-black py-4">{app.date}</td>
-                      <td className="px-6  py-4">
+                      <td className="px-6 py-4">
                         <span
                           className={`text-white px-3 py-1 rounded-full text-xs font-semibold ${statusColors[app.status]}`}
                         >
@@ -190,9 +259,11 @@ export default function DashboardPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <button className="text-emerald-600 underline font-semibold hover:text-emerald-800 text-sm">
+                        <Link href={`/dashboard/${encodeURIComponent(app.name)}/doc_verif`} 
+                          className="text-emerald-600 underline font-semibold hover:text-emerald-800 text-sm"
+                        >
                           View
-                        </button>
+                        </Link>
                       </td>
                     </tr>
                   ))

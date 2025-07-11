@@ -1,6 +1,7 @@
 'use client';
 import React, { useRef, useState, useEffect } from "react";
-import { useSignIn } from "@clerk/nextjs";
+import { useSignIn, useUser } from "@clerk/nextjs";
+import { useRouter } from 'next/navigation';
 import Footer from '../components/Footer';
 import { 
   getUserFriendlyErrorMessage, 
@@ -15,36 +16,47 @@ export default function LandingPage() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const howToApplyRef = useRef<HTMLDivElement>(null);
 
-  // Clerk sign in hook
-  const { signIn, setActive, isLoaded } = useSignIn();
+  // --- Clerk Hooks ---
+  const { signIn, setActive, isLoaded: isSignInLoaded } = useSignIn();
+  const { isSignedIn, isLoaded: isUserLoaded } = useUser(); // Hook to check user status
+  const router = useRouter(); // Hook for client-side navigation
+
+  // --- Form State ---
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [shouldRemember, setShouldRemember] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Detect scroll for navbar styling
+  // --- Redirect Effect for Logged-In Users ---
+  useEffect(() => {
+    // Wait for Clerk to determine the user's authentication state
+    if (isUserLoaded && isSignedIn) {
+      // If the user is signed in, redirect them to the dashboard
+      router.push('/dashboard');
+    }
+  }, [isUserLoaded, isSignedIn, router]); // Re-run this effect if these values change
+
+  // --- Other Effects and Handlers ---
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Scroll to How to Apply section
+  
   const scrollToHowToApply = () => {
     howToApplyRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Enhanced Clerk email/password login handler with comprehensive error handling
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded) return;
-
-    // Clear previous errors and set loading state
+    if (!isSignInLoaded) return;
     setError('');
     setLoading(true);
 
-    // Create error context for debugging
+
     const errorContext: ErrorContext = {
       email: email,
       timestamp: new Date().toISOString(),
@@ -52,84 +64,57 @@ export default function LandingPage() {
       url: window.location.href,
     };
 
-    try {
-      // Log login attempt for debugging (only in development)
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔐 Login attempt started:', {
-          email: email,
-          timestamp: errorContext.timestamp,
-        });
-      }
-
-      // Attempt to create sign-in with Clerk
+      try {
       const attempt = await signIn.create({
         identifier: email,
         password,
       });
 
-      // Handle successful authentication
-      if (attempt.status === 'complete') {
-        // Set the active session
-        await setActive({ session: attempt.createdSessionId });
-        
-        // Log successful login (only in development)
-        if (process.env.NODE_ENV === 'development') {
-          console.log('✅ Login successful:', {
-            email: email,
-            sessionId: attempt.createdSessionId,
-            timestamp: new Date().toISOString(),
-          });
-        }
-
-        // Clear form and close modal
-        setEmail('');
+        if (attempt.status === 'complete') {
+           setActive({ session: attempt.createdSessionId });
+          setEmail('');
         setPassword('');
         setShowLoginModal(false);
-        
-        // Redirect to dashboard
-        window.location.href = '/dashboard';
-      } else {
-        // Handle incomplete authentication (e.g., needs verification)
+        // Use router.push for a smoother navigation after login
+        router.push('/dashboard');
+      } 
+      else {
         const incompleteMessage = 'Please complete additional verification steps.';
         setError(incompleteMessage);
-        
-        // Log incomplete authentication details
-        console.warn('⚠️ Incomplete authentication:', {
+          console.warn('⚠️ Incomplete authentication:', {
           status: attempt.status,
-          email: email,
-          timestamp: new Date().toISOString(),
-        });
-      }
-    } catch (err: any) {
-      // Enhanced error handling with detailed logging
-      
-      // Get user-friendly error message
-      const userFriendlyMessage = getUserFriendlyErrorMessage(err);
-      setError(userFriendlyMessage);
-
-      // Log detailed error information for developers
-      logAuthError(err, errorContext);
-
-      // Handle specific error types with additional actions
-      if (isRateLimitError(err)) {
-        // For rate limiting, we might want to disable the form temporarily
-        console.warn('🚫 Rate limit detected - consider implementing temporary form disable');
-      } else if (isNetworkError(err)) {
-        // For network errors, we might want to show a retry button
-        console.warn('🌐 Network error detected - consider showing retry option');
+            email: email,
+          });
       }
 
-      // Optional: Send error to monitoring service (only in production)
-      if (process.env.NODE_ENV === 'production') {
-        // Example: sendErrorToMonitoring(err, errorContext);
-        console.error('Production error logged for monitoring');
+    } 
+      catch (err: any) {
+        const userFriendlyMessage = getUserFriendlyErrorMessage(err);
+        setError(userFriendlyMessage);
+        logAuthError(err, errorContext);
+        if (isRateLimitError(err)) {
+        console.warn('🚫 Rate limit detected.');
+        } else if (isNetworkError(err)) {
+        console.warn('🌐 Network error detected.');
       }
-    } finally {
-      // Always reset loading state
+    } 
+    finally {
       setLoading(false);
     }
   };
 
+  // --- Conditional Rendering to Prevent Page Flash ---
+  // While Clerk is loading the user session, or if the user is signed in (and about to be redirected),
+  // show a loading screen. This prevents the landing page from briefly appearing.
+  if (!isUserLoaded || isSignedIn) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-lg font-medium text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  // --- Render the full page only if the user is loaded and NOT signed in ---
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-white flex flex-col">
       {/* Navbar */}
@@ -214,7 +199,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Custom Admin Login Modal with Clerk logic */}
+      {/* Custom Admin Login Modal */}
       {showLoginModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl w-full max-w-md p-8 shadow-xl relative">

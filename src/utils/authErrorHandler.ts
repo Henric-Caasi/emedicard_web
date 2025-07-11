@@ -28,6 +28,7 @@ export const getUserFriendlyErrorMessage = (error: any): string => {
   switch (errorCode) {
     case 'form_identifier_not_found':
     case 'form_password_incorrect':
+    case 'account_not_found':
       return 'Invalid email or password. Please check your credentials and try again.';
     
     case 'form_identifier_exists':
@@ -41,13 +42,7 @@ export const getUserFriendlyErrorMessage = (error: any): string => {
     
     case 'session_exists':
       return 'You are already signed in.';
-    
-    case 'verification_failed':
-      return 'Account verification required. Please check your email.';
-    
-    case 'account_not_found':
-      return 'No account found with this email address.';
-    
+      
     case 'password_not_strong_enough':
       return 'Password is not strong enough. Please use a stronger password.';
     
