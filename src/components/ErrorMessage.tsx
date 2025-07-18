@@ -2,40 +2,59 @@
 
 import React from 'react';
 
+// Define the props the component will accept
 interface ErrorMessageProps {
   title: string;
   message: string;
-  onRetry?: () => void;
+  onCloseAction: () => void; // A function to close the message
+  onRetry?: () => void; // An optional function for a retry button
 }
 
-const ErrorMessage: React.FC<ErrorMessageProps> = ({ title, message, onRetry }) => {
+export default function ErrorMessage({ title, message, onCloseAction, onRetry }: ErrorMessageProps) {
   return (
-    <div className="bg-red-50 border-l-4 border-red-400 p-4 my-4 rounded-md shadow-md">
+    // This is the main card container. It's a regular div, not a fixed overlay.
+    <div className="bg-red-50 border-l-4 border-red-500 rounded-r-lg p-4 shadow-md mb-6" role="alert">
       <div className="flex">
-        <div className="flex-shrink-0">
-          <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+        {/* The Warning Icon */}
+        <div className="py-1">
+          <svg className="h-6 w-6 text-red-500 mr-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.21 3.03-1.742 3.03H4.42c-1.532 0-2.492-1.696-1.742-3.03l5.58-9.92zM10 13a1 1 0 110-2 1 1 0 010 2zm-1-8a1 1 0 00-1 1v3a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
           </svg>
         </div>
-        <div className="ml-3">
-          <h3 className="text-sm font-medium text-red-800">{title}</h3>
-          <div className="text-sm text-red-700 mt-2">
-            <p>{message}</p>
-          </div>
-          {onRetry && (
-            <div className="mt-4">
+        
+        {/* The Title and Message */}
+        <div className="flex-grow">
+          <h3 className="font-bold text-red-800">{title}</h3>
+          <p className="text-sm text-red-700">{message}</p>
+          
+          {/* Action Buttons */}
+          <div className="mt-3 flex gap-4">
+            {onRetry && (
               <button
                 onClick={onRetry}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700 transition-colors"
+                className="bg-red-600 text-white px-4 py-1.5 rounded-md text-sm font-medium hover:bg-red-700"
               >
                 Retry
               </button>
-            </div>
-          )}
+            )}
+            <button
+              onClick={onCloseAction}
+              className="bg-transparent text-red-800 px-4 py-1.5 rounded-md text-sm font-medium hover:bg-red-100"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+        
+        {/* The Close Icon Button */}
+        <div className="ml-4">
+          <button onClick={onCloseAction} className="text-red-500 hover:text-red-700" aria-label="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+          </button>
         </div>
       </div>
     </div>
   );
-};
-
-export default ErrorMessage;
+}
